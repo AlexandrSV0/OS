@@ -10,20 +10,23 @@
 #include <pthread.h>
 #include "game.h"
 #include "Message.h"
-#define MAX_PATH_NAME_SIZE 128
-#define GAME_NAME_SIZE 32
-#define MAX_GAMES_COUNT    10
-#define MAX_PLAYERS_COUNT  32
+
+#define PLAYERS_NUMBER  32
+#define GAMES_NUMBER 10
+#define GAME_NAME 32
+#define MAX_PATH 128
+
+typedef struct{
+	char path_sr[MAX_PATH];
+	char path_sw[MAX_PATH];
+} pipes_st;
 
 static sem_t phore;
-static game_st *games[MAX_GAMES_COUNT];
-static pl_st *players[MAX_PLAYERS_COUNT];
+static game_st *games[GAMES_NUMBER];
+static pl_st *players[PLAYERS_NUMBER];
 static int pl_number = 0;
 static int games_count = 0;
 
-void serv_sem_init(){
-	sem_init(&phore, 1, 1);
-}
 
 void lock(){
 	sem_wait(&phore);
@@ -49,10 +52,6 @@ void add_to_str(char* buf, int x){
 	*buf = 0;
 }
 
-typedef struct{
-	char path_sr[MAX_PATH_NAME_SIZE];
-	char path_sw[MAX_PATH_NAME_SIZE];
-} pipes_st;
 
 void pipes_st_init(pipes_st *pl, int num){
 	strcpy(pl->path_sr, "/tmp/bulls_and_cows_sr");
@@ -62,7 +61,7 @@ void pipes_st_init(pipes_st *pl, int num){
 }
 
 
-static int list_reply(char *rep){
+static int list_reply(char* rep){
 	int len = 0;
 	int i = 0;
 	game_st **g = games;
@@ -76,7 +75,7 @@ static int list_reply(char *rep){
 		return len;
 	}
 	do{
-		if(i++ >= MAX_GAMES_COUNT)
+		if(i++ >= GAMES_NUMBER)
 			break;
 		if(*g == NULL){
 			g++;
@@ -92,15 +91,15 @@ static int list_reply(char *rep){
 	return len;
 }
 
-static int print_reply(char *rep){
-	game_st **g = games;
+static int print_reply(char* rep){
+	game_st** g = games;
 	lock();
 	int gc = 0;
 	int i = 0;
-	printf("--------Reply-------\n");
+	printf("--------Games info-------\n");
 	printf("Total games: %d\n", games_count);
 	do{
-		if(i++ >= MAX_GAMES_COUNT)
+		if(i++ >= GAMES_NUMBER)
 			break;
 		if(*g == NULL){
 			g++;
@@ -108,12 +107,12 @@ static int print_reply(char *rep){
 		}
 		printf("%s[%d\\%d] | '%s' %s Active player's ID: %d\n", (*g)->name, (*g)->max_players, (*g)->pl_number, 
 			(*g)->hidden_word, (*g)->win_id < 0 ? "" : "| completed | ", (*g)->active_pl_id);
-//			printf("\n");
+
 		g++;
 		gc++;
 	} while(true);
 
-	printf("=====End of reply====\n\n");
+	printf("========== End ==========\n\n");
 	unlock();
 	*rep = 0;
 	return 0;
@@ -129,12 +128,12 @@ int new_game_serv(char *name, int max_players, pl_st *first_player){
 	if(g == NULL)
 		return -1;
 	lock();
-	for(i = 0; i < MAX_GAMES_COUNT; i++){
-		if(games[(i + ind) % MAX_GAMES_COUNT] == NULL){
-			rvl = (i + ind) % MAX_GAMES_COUNT;
+	for(i = 0; i < GAMES_NUMBER; i++){
+		if(games[(i + ind) % GAMES_NUMBER] == NULL){
+			rvl = (i + ind) % GAMES_NUMBER;
 			games[rvl] = g;
 			games_count++;
-			ind = (i + ind + 1) % MAX_GAMES_COUNT;
+			ind = (i + ind + 1) % GAMES_NUMBER;
 			break;
 		}
 	}
@@ -143,7 +142,7 @@ int new_game_serv(char *name, int max_players, pl_st *first_player){
 }
 
 void remove_game(int ind){
-	if(ind >= MAX_GAMES_COUNT || ind < 0)
+	if(ind >= GAMES_NUMBER || ind < 0)
 		return;
 	if(games[ind] != NULL){
 		games[ind] = NULL;
@@ -151,7 +150,7 @@ void remove_game(int ind){
 	}
 }
 
-int add_player(pl_st *p){
+int add_player(pl_st *p) {
 	static int ind = 0;
 	int rvl = -1;
 	int i;
@@ -159,12 +158,12 @@ int add_player(pl_st *p){
 		return -1;
 
 	lock();
-	for(i = 0; i < MAX_PLAYERS_COUNT; i++){
-		if(players[(i + ind) % MAX_PLAYERS_COUNT] == NULL){
-			rvl = (i + ind) % MAX_PLAYERS_COUNT;
+	for(i = 0; i < PLAYERS_NUMBER; i++) {
+		if(players[(i + ind) % PLAYERS_NUMBER] == NULL) {
+			rvl = (i + ind) % PLAYERS_NUMBER;
 			players[rvl] = p;
 			pl_number++;
-			ind = (i + ind + 1) % MAX_PLAYERS_COUNT;
+			ind = (i + ind + 1) % PLAYERS_NUMBER;
 			break;
 		}
 	}
@@ -175,7 +174,7 @@ int add_player(pl_st *p){
 }
 
 void remove_player(int ind){
-	if(ind >= MAX_PLAYERS_COUNT || ind < 0)
+	if(ind >= PLAYERS_NUMBER || ind < 0)
 		return;
 	lock();
 	if(players[ind] != NULL){
@@ -198,7 +197,7 @@ static void* client_thread(void *arg){
 	for (;;) {
 		read_str(fd_r, req, MAX_REQUEST_SIZE);
 		if (*req == 'q') {
-			printf("!GAME OVER!\n");
+			printf("Game over\n");
 			remove_player(my_ind);
 			free(player);
 			return NULL;
@@ -216,7 +215,7 @@ static void* client_thread(void *arg){
 				write_msg(fd_w, "!\n", 2);
 				continue;
 			}
-			char name[GAME_NAME_SIZE];
+			char name[GAME_NAME];
 			name[0] = 0;
 			int max_players = -1;
 			sscanf(req + 1, "%d*%s", &max_players, name);
@@ -245,7 +244,7 @@ static void* client_thread(void *arg){
 				word[i] = req[i+1];
 			}
 			printf("GAME = %s [%d\\%d].\nWORD: ''%s''\n", game->name, game->max_players, game->pl_number, word);
-			if (game == NULL || !active_game(game)) {
+			if (game == NULL || game->active_pl_id < 0) {
 				printf("# NOT ACTIVE!\n");
 				write_msg(fd_w, "!\n", 2);
 				continue;
@@ -294,10 +293,10 @@ static void* client_thread(void *arg){
 				continue;
 			}
 			lock();
-			for (int i = 0; i < MAX_GAMES_COUNT; i++){
+			for (int i = 0; i < GAMES_NUMBER; i++) {
 				if (games[i] == NULL)
 					continue;
-				if (active_game(games[i]))
+				if (games[i]->active_pl_id >= 0)
 					continue;
 				if (*p == 0 || strcmp(p, games[i]->name) == 0) {
 					games[i]->players[games[i]->pl_number++] = player;
@@ -369,13 +368,12 @@ static void* client_thread(void *arg){
 				} while (game->players[game->active_pl_id] == NULL);
 			}
 			if(game->pl_number <= 0){
-				if (game_ind < 0 || game_ind >= MAX_GAMES_COUNT)
+				if (game_ind < 0 || game_ind >= GAMES_NUMBER)
 					printf("Game ID = %d\n", game_ind);
 				else if(games[game_ind] == NULL)
 					printf("Null ID\n");
 				else
-					printf("%d.Game-name: %s(%s) PC: %d\n", game_ind, games[game_ind]->name, game->name, game->pl_number);
-				unlock(); print_reply(rep); lock();
+					printf("%d.Game: %s. Players: %d\n", game_ind, game->name, game->pl_number);
 				remove_game(game_ind);
 				unlock(); print_reply(rep); lock();
 				free(game);
@@ -393,8 +391,8 @@ void pthr_player_begin(int fd_r, int fd_w){
 	pl_st *player = malloc(sizeof(pl_st));
 	player->fd_r = fd_r;
 	player->fd_w = fd_w;
-	int idx = add_player(player);
-	printf("Player-ID: %d\n", idx);
+	int ID = add_player(player);
+	printf("Player-ID: %d\n", ID);
 	pthread_create(&player->t_id, NULL, &client_thread, player);
 	printf("## Thread started successfully!\n");
 }
@@ -404,19 +402,21 @@ void server_thread_start(pipes_st pl){
 	int fd_w = -1;
 
 	if(mknod(pl.path_sw, S_IFIFO|S_IWUSR|S_IWOTH|S_IRUSR|S_IROTH, 0) < 0){
-		perror("Error: MKNOD path_sw\n!");
+		perror("Error: MKNOD path_sw\n");
 		printf("PIPES: %s %s\n", pl.path_sw, pl.path_sr);
 	}
 
 	if(mknod(pl.path_sr, S_IFIFO|S_IWUSR|S_IWOTH|S_IRUSR|S_IROTH, 0) < 0){
-		perror("Error: MKNOD path_sr\n!");
+		perror("Error: MKNOD path_sr\n");
 		printf("PIPES: %s %s\n", pl.path_sw, pl.path_sr);
 	}
+
 	printf("## Pipes created\n");
 	if((fd_r = open(pl.path_sr, O_RDONLY)) < 0){
 		perror("Can't open pipe for reading!\n");
 		printf("PIPES: %s %s\n", pl.path_sw, pl.path_sr);
 	}
+
 	if((fd_w = open(pl.path_sw, O_WRONLY)) < 0){
 		perror("Can't open pipe for writing!\n");
 		printf("PIPES: %s %s\n", pl.path_sw, pl.path_sr);
@@ -426,12 +426,14 @@ void server_thread_start(pipes_st pl){
 }
 
 int main(){
-	serv_sem_init();
+	sem_init(&phore, 1, 1);
 	int pipe_id = 1;
 	pipes_st connection_pl;
 	pipes_st_init(&connection_pl, 0);
+	
 	if(mknod(connection_pl.path_sw, S_IFIFO|S_IWUSR|S_IWOTH|S_IRUSR|S_IROTH, 0) < 0)
 			perror("Error: MKNOD!\n");
+
 	for(;;) {
 		int fd_w;
 		if((fd_w = open(connection_pl.path_sw, O_WRONLY)) < 0)

@@ -6,7 +6,7 @@
 #include <ctype.h>
 #include <pthread.h>
 
-#define GAME_NAME_SIZE 32
+#define GAME_NAME 32
 #define WIN_BULLS 4
 
 typedef struct{
@@ -18,7 +18,7 @@ typedef struct{
 
 typedef struct{
 	int win_id;
-	char name[GAME_NAME_SIZE];
+	char name[GAME_NAME];
 	char* hidden_word;
 	int max_players;
 	int pl_number;
@@ -26,9 +26,6 @@ typedef struct{
 	pl_st *players[1];
 } game_st;
 
-static inline bool active_game(game_st *g){
-	return g->active_pl_id >= 0;
-}
 
 game_st* new_game(char *name, int max_players, pl_st *first_player);
 void bulls_and_cows(game_st* g, char* user_word, int *bulls, int *cows);

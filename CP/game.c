@@ -1,8 +1,8 @@
-#include "game.h"
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include "game.h"
 
 static char* get_rand_word() {
 	srand(time(NULL));	
@@ -29,13 +29,13 @@ static char* get_rand_word() {
 	if (i == 18) str = "plan";
 	if (i == 19) str = "face";
 	if (i == 20) str = "cave";
-
 	return str;
 }
 
-game_st* new_game(char *name, int max_players, pl_st *first_player){
+game_st* new_game(char* name, int max_players, pl_st* first_player){
 	static int game_number = 0;
 	game_st *g = malloc(sizeof(game_st) + sizeof(pl_st *) * (max_players - 1));
+	
 	if (g == NULL) {
 		perror("Error: malloc\n");
 		return NULL;
@@ -49,8 +49,8 @@ game_st* new_game(char *name, int max_players, pl_st *first_player){
 		g->active_pl_id = 0;
 	else 
 		g->active_pl_id = -1;
-	g->max_players = max_players;
 
+	g->max_players = max_players;
 	g->players[0] = first_player;
 	g->pl_number = 1;
 	g->win_id = -1;
@@ -58,21 +58,23 @@ game_st* new_game(char *name, int max_players, pl_st *first_player){
 	return g;
 }
 
-void bulls_and_cows(game_st* g, char* user_word, int* bulls, int* cows){
+void bulls_and_cows(game_st* g, char* user_word, int* bulls, int* cows) {
 	char bukva;
 	int bll = 0;
 	int cw = 0;
-	if(g == NULL) {
+	
+	if (g == NULL) {
 		printf("\tHidden word: '%s'\n\tBULLS: %d\n\tCOWS: %d\n", g->hidden_word, bll, cw);
 		if(bulls != NULL) *bulls = bll; 
 		if(cows != NULL) *cows = cw - bll;
 	}
-	for (int i = 0; i < WIN_BULLS; i++){
+	
+	for (int i = 0; i < WIN_BULLS; i++) {
 		bukva = user_word[i];
 		if (bukva == g->hidden_word[i]) bll++;
 		
-		for(int j = 0; j < WIN_BULLS; j++){
-		if(g->hidden_word[j] == bukva){
+		for (int j = 0; j < WIN_BULLS; j++) {
+		if (g->hidden_word[j] == bukva) {
 				cw++;
 				break;
 			}

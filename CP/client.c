@@ -1,4 +1,3 @@
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -11,9 +10,9 @@
 #include "Message.h"
 #include "game.h"
 
-#define MAX_PATH_NAME_SIZE 128
-#define MAX_CMD_SIZE 	   64 
-#define GAME_NAME_SIZE 32
+#define MAX_CMD_SIZE 64 
+#define GAME_NAME 32
+#define MAX_PATH 128
 
 char *skip_separator(char *str){
 	if(str == NULL)
@@ -142,7 +141,7 @@ static game_st* CreateGame(pl_st *player, char *name, int max_players){
 }
 
 static game_st* JoinGame(pl_st *player, char *name){
-	char server_game_name[GAME_NAME_SIZE];
+	char server_game_name[GAME_NAME];
 	char msg[MAX_REQUEST_SIZE];
 	char rep[MAX_REPLY_SIZE];
 	int server_max_players = -1;
@@ -150,13 +149,13 @@ static game_st* JoinGame(pl_st *player, char *name){
 	int len = snprintf(msg, MAX_REQUEST_SIZE, "j%s\n", name == NULL ? "" : name);
 	write_msg(player->fd_w, msg, len);
 	read_str(player->fd_r, rep, MAX_REPLY_SIZE);
-	printf("Joining to the %s\n", rep);
+	printf("Joining to the %s...\n", rep);
 	if(*rep == '!')
 		return NULL;
 	sscanf(rep, "%s %d %d", server_game_name, &server_max_players, &server_active_pl_ids);
 	if(*server_game_name == 0)
 		return NULL;
-	printf("%s %d %d\n", server_game_name, server_max_players, server_active_pl_ids);
+//	printf("%s %d %d\n", server_game_name, server_max_players, server_active_pl_ids);
 	if(server_game_name[0] == 0 || server_max_players < 1 || server_active_pl_ids < 1)
 		return NULL;
 	game_st* game = new_game(server_game_name, server_max_players, player);
@@ -294,10 +293,10 @@ int main () {
 			close(fd_w);
 		return 0;
 	}
-	char pl_r[MAX_PATH_NAME_SIZE];
-	char pl_w[MAX_PATH_NAME_SIZE];
-	read_str(fd_r, pl_w, MAX_PATH_NAME_SIZE);
-	read_str(fd_r, pl_r, MAX_PATH_NAME_SIZE);
+	char pl_r[MAX_PATH];
+	char pl_w[MAX_PATH];
+	read_str(fd_r, pl_w, MAX_PATH);
+	read_str(fd_r, pl_r, MAX_PATH);
 	close(fd_r);
 //	printf("%s %s\n", pl_r, pl_w);
 	if((fd_w = open(pl_w, O_WRONLY)) < 0){
